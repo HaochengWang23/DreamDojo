@@ -58,35 +58,41 @@ class AbstractCheckpointer(ABC):
         self.keys_not_to_resume = config_checkpoint.keys_not_to_resume
         self.broadcast_via_filesystem = config_checkpoint.broadcast_via_filesystem
         # Create the object store client interface.
-        if config_checkpoint.load_from_object_store.enabled:
-            self.load_s3_backend_key = "_ckpt_s3_loader"
-            easy_io.set_s3_backend(
-                key="_ckpt_s3_loader",
-                backend_args={
-                    "backend": "s3",
-                    "path_mapping": {
-                        "s3://ckpt/": f"s3://{config_checkpoint.load_from_object_store.bucket}/",
-                    },
-                    "s3_credential_path": config_checkpoint.load_from_object_store.credentials,
-                },
-            )
-        else:
-            self.load_s3_backend_key = None
+        # if config_checkpoint.load_from_object_store.enabled:
+        #     self.load_s3_backend_key = "_ckpt_s3_loader"
+        #     easy_io.set_s3_backend(
+        #         key="_ckpt_s3_loader",
+        #         backend_args={
+        #             "backend": "s3",
+        #             "path_mapping": {
+        #                 "s3://ckpt/": f"s3://{config_checkpoint.load_from_object_store.bucket}/",
+        #             },
+        #             "s3_credential_path": config_checkpoint.load_from_object_store.credentials,
+        #         },
+        #     )
+        # else:
+        #     self.load_s3_backend_key = None
 
-        if config_checkpoint.save_to_object_store.enabled:
-            self.save_s3_backend_key = "_ckpt_s3_saver"
-            easy_io.set_s3_backend(
-                key="_ckpt_s3_saver",
-                backend_args={
-                    "backend": "s3",
-                    "path_mapping": {
-                        "s3://ckpt/": f"s3://{config_checkpoint.save_to_object_store.bucket}/",
-                    },
-                    "s3_credential_path": config_checkpoint.save_to_object_store.credentials,
-                },
-            )
-        else:
-            self.save_s3_backend_key = None
+        # Disable S3 backend initialization for local-only reproduction
+        self.load_s3_backend_key = None
+
+        # if config_checkpoint.save_to_object_store.enabled:
+        #     self.save_s3_backend_key = "_ckpt_s3_saver"
+        #     easy_io.set_s3_backend(
+        #         key="_ckpt_s3_saver",
+        #         backend_args={
+        #             "backend": "s3",
+        #             "path_mapping": {
+        #                 "s3://ckpt/": f"s3://{config_checkpoint.save_to_object_store.bucket}/",
+        #             },
+        #             "s3_credential_path": config_checkpoint.save_to_object_store.credentials,
+        #         },
+        #     )
+        # else:
+        #     self.save_s3_backend_key = None
+        
+        # Disable S3 backend initialization for local-only reproduction
+        self.save_s3_backend_key = None
 
     @abstractmethod
     def save(

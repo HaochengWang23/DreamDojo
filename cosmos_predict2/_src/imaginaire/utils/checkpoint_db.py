@@ -161,19 +161,48 @@ class CheckpointConfig(pydantic.BaseModel):
     hf: CheckpointFileHf | CheckpointDirHf | None = None
     """Config for checkpoint on Hugging Face."""
 
+    # @cached_property
+    # def path(self) -> str:
+    #     """Return S3 URI or local path."""
+    #     if INTERNAL and self.s3 is not None:
+    #         return self.s3.uri
+    #     if self.hf is None:
+    #         raise ValueError(f"Checkpoint {self.name}({self.uuid}) is not available on Hugging Face.")
+    #     log.info(f"Downloading checkpoint {self.name}({self.uuid})")
+    #     return self.hf.path
+
     @cached_property
     def path(self) -> str:
-        """Return S3 URI or local path."""
+        """Return local override path, S3 URI, or Hugging Face path."""
+        if self.uuid in LOCAL_OVERRIDES:
+            local_path = LOCAL_OVERRIDES[self.uuid]
+            if not os.path.exists(local_path):
+                raise ValueError(
+                    f"Local override for checkpoint {self.name}({self.uuid}) does not exist: {local_path}"
+                )
+            log.info(f"Using local override for checkpoint {self.name}({self.uuid}): {local_path}")
+            return local_path
+
         if INTERNAL and self.s3 is not None:
             return self.s3.uri
+
         if self.hf is None:
             raise ValueError(f"Checkpoint {self.name}({self.uuid}) is not available on Hugging Face.")
+
         log.info(f"Downloading checkpoint {self.name}({self.uuid})")
         return self.hf.path
 
-
 _CHECKPOINTS_BY_UUID: dict[str, CheckpointConfig] = {}
 _CHECKPOINTS_BY_S3: dict[str, CheckpointConfig] = {}
+
+LOCAL_OVERRIDES: dict[str, str] = {
+    # Reason1 / Reason1.1 都强制映射到本地 Reason1-7B
+    "7219c6c7-f878-4137-bbdb-76842ea85e70": "/home/ubuntu/research/DreamDojo/Cosmos-Reason1-7B",
+    "cb3e3ffa-7b08-4c34-822d-61c7aa31a14f": "/home/ubuntu/research/DreamDojo/Cosmos-Reason1-7B",
+
+    # tokenizer
+    "685afcaa-4de2-42fe-b7b9-69f7a2dee4d8": "/home/ubuntu/research/DreamDojo/Cosmos-Predict2.5-2B/tokenizer.pth",
+}
 
 
 def _register_checkpoint(checkpoint_config: CheckpointConfig):
