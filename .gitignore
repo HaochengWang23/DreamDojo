@@ -66,3 +66,18 @@ output*/
 # Launchers (internal)
 osmo_launch.py
 ray_launch.py
+
+
+# models & checkpoints
+checkpoints/
+Cosmos-Reason1-7B/
+Cosmos-Predict2.5-2B/
+
+# datasets
+datasets/
+
+# outputs
+outputs/
+
+# cache
+.cache/
