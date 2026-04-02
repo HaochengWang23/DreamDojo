@@ -197,11 +197,15 @@ _CHECKPOINTS_BY_S3: dict[str, CheckpointConfig] = {}
 
 LOCAL_OVERRIDES: dict[str, str] = {
     # Reason1 / Reason1.1 都强制映射到本地 Reason1-7B
-    "7219c6c7-f878-4137-bbdb-76842ea85e70": "/home/ubuntu/research/DreamDojo/Cosmos-Reason1-7B",
-    "cb3e3ffa-7b08-4c34-822d-61c7aa31a14f": "/home/ubuntu/research/DreamDojo/Cosmos-Reason1-7B",
+    "7219c6c7-f878-4137-bbdb-76842ea85e70": "/home/featurize/models/Cosmos-Reason1-7B",
+    "cb3e3ffa-7b08-4c34-822d-61c7aa31a14f": "/home/featurize/models/Cosmos-Reason1-7B",
 
     # tokenizer
-    "685afcaa-4de2-42fe-b7b9-69f7a2dee4d8": "/home/ubuntu/research/DreamDojo/Cosmos-Predict2.5-2B/tokenizer.pth",
+    "685afcaa-4de2-42fe-b7b9-69f7a2dee4d8": "/home/featurize/work/DreamDojo/Cosmos-Predict2.5-2B/tokenizer.pth",
+
+    # Guardrails
+    "9c7b7da4-2d95-45bb-9cb8-2eed954e9736": "/home/featurize/models/Cosmos-Guardrail1",
+
 }
 
 
@@ -244,6 +248,7 @@ _register_checkpoint(
     CheckpointConfig(
         uuid="9c7b7da4-2d95-45bb-9cb8-2eed954e9736",
         name="nvidia/Cosmos-Guardrail1",
+        # local_path="/home/featurize/models/Cosmos-Guardrail1", ##local path
         hf=CheckpointDirHf(
             repository="nvidia/Cosmos-Guardrail1",
             revision="d6d4bfa899a71454a700907664f3e88f503950cf",

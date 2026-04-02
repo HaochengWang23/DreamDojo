@@ -28,7 +28,7 @@ class SigLIPEncoder(torch.nn.Module):
         self.device = device
         self.dtype = dtype
         # model_id = "google/siglip-so400m-patch14-384"
-        model_id = "/home/ubuntu/research/DreamDojo/models--google--siglip-so400m-patch14-384"
+        model_id = "/home/featurize/work/DreamDojo/models--google--siglip-so400m-patch14-384"
         # model_id = "/home/ubuntu/research/models--google--siglip-so400m-patch14-384"  
         self.model = SiglipModel.from_pretrained(model_id)
         self.processor = SiglipProcessor.from_pretrained(model_id)

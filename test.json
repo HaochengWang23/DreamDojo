@@ -1,0 +1,8 @@
+{
+  "name": "test_sample",
+  "inference_type": "text2world",
+  "prompt": "a robot walking in a futuristic city",
+  "num_output_frames": 8,
+  "guidance": 0,
+  "num_steps": 10
+}
