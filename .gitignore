@@ -83,3 +83,5 @@ outputs/
 .cache/
 
 models--google--siglip-so400m-patch14-384/
+
+.codex

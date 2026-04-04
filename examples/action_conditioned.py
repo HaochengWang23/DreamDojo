@@ -61,10 +61,17 @@ def main(args: Args) -> None:
 
     from cosmos_predict2.action_conditioned import inference
 
+    if args.setup.checkpoint_path is not None:
+        checkpoint_path = Path(args.setup.checkpoint_path)
+        inference(args.setup, inference_args, checkpoint_path)
+        return
+    
     last_checkpoint_file = Path(args.setup.checkpoints_dir) / "latest_checkpoint.txt"
-    f = open(last_checkpoint_file, "r")
-    last_checkpoint = f.read().strip()
-    f.close()
+    with open(last_checkpoint_file, "r") as f:
+        last_checkpoint = f.read().strip()
+    # f = open(last_checkpoint_file, "r")
+    # last_checkpoint = f.read().strip()
+    # f.close()
 
     if args.setup.infinite:
         last_iter = int(last_checkpoint.split("_")[-1])

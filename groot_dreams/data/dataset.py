@@ -1050,6 +1050,8 @@ class WrappedLeRobotSingleDataset(LeRobotSingleDataset):
             delta_actions = torch.cat(delta_actions, dim=0).float()
 
             action_seq = torch.zeros(self.num_frames - 1, 384, dtype=torch.float32)
+            print("DEBUG transformed action shape:", original_outputs["action"].shape)
+            print("DEBUG final action_seq shape:", action_seq.shape)
             # gt_actions = torch.zeros(self.num_frames - 1, 352, dtype=torch.float32)
             # latent_actions = torch.ones(self.num_frames - 1, 32, dtype=torch.float32)
             # latent_actions = latent_actions * torch.bernoulli(0.8 * torch.ones(1)).type_as(latent_actions)
