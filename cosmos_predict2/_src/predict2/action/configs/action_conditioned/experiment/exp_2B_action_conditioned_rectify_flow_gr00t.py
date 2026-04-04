@@ -628,8 +628,10 @@ AC_CHUNK_MULTI_VIEW_2B_GR00T_GR1_CUSTOMIZED_13FRAME = LazyDict(
         defaults=[
             "/experiment/cosmos_predict2p1_2B_reason_embeddings_action_conditioned_rectified_flow_bridge_13frame_480_640_",
             {"override /net": "cosmos_v1_2B_action_chunk_conditioned"},
-            {"override /data_train": "gr00t_customized_gr1"},
-            {"override /data_val": "gr00t_customized_gr1"},
+            # {"override /data_train": "gr00t_customized_gr1"},
+            # {"override /data_val": "gr00t_customized_gr1"},
+            {"override /data_train": "dreamdojo_13frame_480_640_train"},
+            {"override /data_val": "dreamdojo_13frame_480_640_val"},
         ],
         job=dict(
             group="official_runs_vid2vid",
@@ -796,8 +798,10 @@ AC_CHUNK_MULTI_VIEW_2B_GR00T_GR1_CUSTOMIZED_13FRAME_FULL_16NODES_OSS = LazyDict(
         defaults=[
             "/experiment/2b_bridge_action_conditioned_oss",
             {"override /net": "cosmos_v1_2B_action_chunk_conditioned"},
-            {"override /data_train": "gr00t_customized_gr1"},
-            {"override /data_val": "gr00t_customized_gr1"},
+            # {"override /data_train": "gr00t_customized_gr1"},
+            # {"override /data_val": "gr00t_customized_gr1"},
+            {"override /data_train": "dreamdojo_13frame_480_640_train"},
+            {"override /data_val": "dreamdojo_13frame_480_640_val"},
             "_self_",
         ],
         job=dict(

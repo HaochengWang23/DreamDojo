@@ -94,7 +94,8 @@ dreamdojo_13frame_480_640_train_dataset = L(MultiVideoActionDataset)(
 )
 dreamdojo_13frame_480_640_val_dataset = L(MultiVideoActionDataset)(
     num_frames=13,
-    dataset_path=["datasets/PhysicalAI-Robotics-GR00T-Teleop-GR1/GR1_robot"],
+    # dataset_path=["datasets/PhysicalAI-Robotics-GR00T-Teleop-GR1/GR1_robot"],
+    dataset_path=["datasets/PhysicalAI-Robotics-GR00T-Teleop-GR1/In-lab_Eval/gr1_unified.mug_robot"],
 )
 
 

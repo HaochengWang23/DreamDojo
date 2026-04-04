@@ -36,7 +36,7 @@ class Mlp(nn.Module):
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
-        print("DEBUG action x shape before fc1:", x.shape)
+        # print("DEBUG action x shape before fc1:", x.shape)
         # print("DEBUG raw action shape:", action.shape)
         x = self.fc1(x)
         x = self.activation(x)
@@ -111,7 +111,7 @@ class ActionConditionedMinimalV1LVGDiT(MiniTrainDIT):
 
         assert action is not None, "action must be provided"
         action = rearrange(action, "b t d -> b 1 (t d)")
-        print("DEBUG raw action shape before embedder:", action.shape)
+        # print("DEBUG raw action shape before embedder:", action.shape)
         action_emb_B_D = self.action_embedder_B_D(action)
         action_emb_B_3D = self.action_embedder_B_3D(action)
 
@@ -266,7 +266,7 @@ class ActionChunkConditionedMinimalV1LVGDiT(MiniTrainDIT):
         assert action is not None, "action must be provided"
         action = rearrange(action, "b t d -> b 1 (t d)")
         action = rearrange(action, "b 1 (t d) -> b t d", t=num_actions // self._num_action_per_latent_frame)
-        print("DEBUG raw action shape before embedder:", action.shape)
+        # print("DEBUG raw action shape before embedder:", action.shape)
         action_emb_B_D = self.action_embedder_B_D(action)
         action_emb_B_3D = self.action_embedder_B_3D(action)
 
