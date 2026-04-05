@@ -297,108 +297,131 @@ def inference(
 
     # Process each file in the input directory
     for idx in eval_indices:
-        data = dataset[idx]
-        gt_video = data["video"].permute(1, 2, 3, 0)
-        img_array = data["video"].transpose(0, 1)[:1]
-        actions = data["action"][:num_frames - 1].numpy()
-        lam_video = data["lam_video"]
+        try:
+            # print(f"[DEBUG] processing sample idx={idx}")
+            data = dataset[idx]
+            gt_video = data["video"].permute(1, 2, 3, 0)
+            img_array = data["video"].transpose(0, 1)[:1]
+            actions = data["action"][:num_frames - 1].numpy()
+            lam_video = data["lam_video"]
 
-        if inference_args.zero_actions:
-            actions = np.zeros_like(actions)
+            if inference_args.zero_actions:
+                actions = np.zeros_like(actions)
 
-        frames = [img_array]
-        chunk_video = []
-        save_name = f"{idx:04d}"
+            frames = [img_array]
+            chunk_video = []
+            save_name = f"{idx:04d}"
 
-        video_name = str(inference_args.save_root / save_name)
-        chunk_video_name = str(inference_args.save_root / f"{save_name}_pred.mp4")
-        logger.info(f"Saving video to {video_name}")
-        if os.path.exists(chunk_video_name):
-            logger.info(f"Video already exists: {chunk_video_name}")
+            video_name = str(inference_args.save_root / save_name)
+            chunk_video_name = str(inference_args.save_root / f"{save_name}_pred.mp4")
+            metrics_json = inference_args.save_root / f"{save_name}_metrics.json"
+            logger.info(f"Saving video to {video_name}")
+
+            metrics_file = inference_args.save_root / f"{save_name}_metrics.json"
+
+
+            if os.path.exists(chunk_video_name):
+                # logger.info(f"Video already exists: {chunk_video_name}")
+                logger.info(f"Metrics already exist: {metrics_json}")
+                continue
+
+            first_round = True
+            for i in range(inference_args.start_frame_idx, len(actions), inference_args.chunk_size):
+                # Handle incomplete chunks
+                actions_chunk = actions[i : i + inference_args.chunk_size]
+                assert actions_chunk.shape[0] == inference_args.chunk_size
+                # if actions_chunk.shape[0] != inference_args.chunk_size:
+                #     pad_len = inference_args.chunk_size - actions_chunk.shape[0]
+                #     if pad_len > 0:
+                #         action_shape = list(actions.shape[1:])
+                #         pad_shape = [pad_len] + action_shape
+                #         pad_actions = np.zeros(pad_shape, dtype=actions.dtype)
+                #         actions_chunk = np.concatenate([actions_chunk, pad_actions], axis=0)
+
+                current_lam_video = lam_video[i * 2 : (i + inference_args.chunk_size) * 2]
+
+                # Convert img_array to tensor and prepare video input
+                # pyrefly: ignore  # implicit-import
+                if not first_round:
+                    img_tensor = torchvision.transforms.functional.to_tensor(img_array).unsqueeze(0) * 255.0
+                else:
+                    img_tensor = img_array
+                first_round = False
+                num_video_frames = actions_chunk.shape[0] + 1
+                vid_input = torch.cat(
+                    [img_tensor, torch.zeros_like(img_tensor).repeat(num_video_frames - 1, 1, 1, 1)], dim=0
+                )
+                vid_input = vid_input.to(torch.uint8)
+                vid_input = vid_input.unsqueeze(0).permute(0, 2, 1, 3, 4)  # (B, C, T, H, W)
+
+                # Call generate_vid2world
+                video = video2world_cli.generate_vid2world(
+                    prompt="",
+                    input_path=vid_input,
+                    action=torch.from_numpy(actions_chunk).float()
+                    if isinstance(actions_chunk, np.ndarray)
+                    else actions_chunk,
+                    guidance=inference_args.guidance,
+                    num_video_frames=num_video_frames,
+                    num_latent_conditional_frames=inference_args.num_latent_conditional_frames,
+                    resolution="480,640",
+                    seed=i,
+                    negative_prompt=inference_args.negative_prompt,
+                    lam_video=current_lam_video,
+                )
+                # Extract next frame and video from result
+                video_normalized = (video - (-1)) / (1 - (-1))
+                video_clamped = (
+                    (torch.clamp(video_normalized[0], 0, 1) * 255).to(torch.uint8).permute(1, 2, 3, 0).cpu().numpy()
+                )
+                next_img_array = video_clamped[-1]  # Last frame is the next frame
+                frames.append(next_img_array)
+                img_array = next_img_array
+                chunk_video.append(video_clamped)
+
+                if inference_args.single_chunk:
+                    break
+
+            if len(chunk_video) == 0:
+                raise RuntimeError(f"No chunks were generated for sample idx={idx}")
+            chunk_list = [chunk_video[0]] + [
+                chunk_video[i][: inference_args.chunk_size] for i in range(1, len(chunk_video))
+            ]
+            chunk_video = np.concatenate(chunk_list, axis=0)
+            chunk_video_name = str(inference_args.save_root / f"{save_name}_pred.mp4")
+
+            if rank0:
+                mediapy.write_video(chunk_video_name, chunk_video, fps=inference_args.save_fps)
+                mediapy.write_video(str(inference_args.save_root / f"{save_name}_gt.mp4"), gt_video.numpy(), fps=inference_args.save_fps)
+                concat_video = np.concatenate([gt_video.numpy(), chunk_video], axis=2)
+                mediapy.write_video(str(inference_args.save_root / f"{save_name}_merged.mp4"), concat_video, fps=inference_args.save_fps)
+                np.save(str(inference_args.save_root / f"{save_name}_actions.npy"), actions)
+                logger.info(f"Saved video to {chunk_video_name}")
+                x_batch = torch.clamp(torch.from_numpy(chunk_video) / 255.0, 0, 1).permute(0, 3, 1, 2)
+                y_batch = torch.clamp(gt_video / 255.0, 0, 1).permute(0, 3, 1, 2)
+                psnr = piq.psnr(x_batch, y_batch).mean().item()
+                ssim = piq.ssim(x_batch, y_batch).mean().item()
+                lpips = piq.LPIPS()(x_batch, y_batch).mean().item()
+                with open(inference_args.save_root / f"{save_name}_metrics.json", "w") as f:
+                    json.dump({"psnr": float(psnr), "ssim": float(ssim), "lpips": float(lpips)}, f)
+                all_psnr.append(psnr)
+                all_ssim.append(ssim)
+                all_lpips.append(lpips)
+        except Exception as e:
+            print(f"[ERROR] sample idx={idx} failed: {e}")
+            import traceback
+            traceback.print_exc()
+
+            if not setup_args.keep_going:
+                raise
             continue
 
-        first_round = True
-        for i in range(inference_args.start_frame_idx, len(actions), inference_args.chunk_size):
-            # Handle incomplete chunks
-            actions_chunk = actions[i : i + inference_args.chunk_size]
-            assert actions_chunk.shape[0] == inference_args.chunk_size
-            # if actions_chunk.shape[0] != inference_args.chunk_size:
-            #     pad_len = inference_args.chunk_size - actions_chunk.shape[0]
-            #     if pad_len > 0:
-            #         action_shape = list(actions.shape[1:])
-            #         pad_shape = [pad_len] + action_shape
-            #         pad_actions = np.zeros(pad_shape, dtype=actions.dtype)
-            #         actions_chunk = np.concatenate([actions_chunk, pad_actions], axis=0)
-
-            current_lam_video = lam_video[i * 2 : (i + inference_args.chunk_size) * 2]
-
-            # Convert img_array to tensor and prepare video input
-            # pyrefly: ignore  # implicit-import
-            if not first_round:
-                img_tensor = torchvision.transforms.functional.to_tensor(img_array).unsqueeze(0) * 255.0
-            else:
-                img_tensor = img_array
-            first_round = False
-            num_video_frames = actions_chunk.shape[0] + 1
-            vid_input = torch.cat(
-                [img_tensor, torch.zeros_like(img_tensor).repeat(num_video_frames - 1, 1, 1, 1)], dim=0
-            )
-            vid_input = vid_input.to(torch.uint8)
-            vid_input = vid_input.unsqueeze(0).permute(0, 2, 1, 3, 4)  # (B, C, T, H, W)
-
-            # Call generate_vid2world
-            video = video2world_cli.generate_vid2world(
-                prompt="",
-                input_path=vid_input,
-                action=torch.from_numpy(actions_chunk).float()
-                if isinstance(actions_chunk, np.ndarray)
-                else actions_chunk,
-                guidance=inference_args.guidance,
-                num_video_frames=num_video_frames,
-                num_latent_conditional_frames=inference_args.num_latent_conditional_frames,
-                resolution="480,640",
-                seed=i,
-                negative_prompt=inference_args.negative_prompt,
-                lam_video=current_lam_video,
-            )
-            # Extract next frame and video from result
-            video_normalized = (video - (-1)) / (1 - (-1))
-            video_clamped = (
-                (torch.clamp(video_normalized[0], 0, 1) * 255).to(torch.uint8).permute(1, 2, 3, 0).cpu().numpy()
-            )
-            next_img_array = video_clamped[-1]  # Last frame is the next frame
-            frames.append(next_img_array)
-            img_array = next_img_array
-            chunk_video.append(video_clamped)
-
-            if inference_args.single_chunk:
-                break
-
-        chunk_list = [chunk_video[0]] + [
-            chunk_video[i][: inference_args.chunk_size] for i in range(1, len(chunk_video))
-        ]
-        chunk_video = np.concatenate(chunk_list, axis=0)
-        chunk_video_name = str(inference_args.save_root / f"{save_name}_pred.mp4")
-
-        if rank0:
-            mediapy.write_video(chunk_video_name, chunk_video, fps=inference_args.save_fps)
-            mediapy.write_video(str(inference_args.save_root / f"{save_name}_gt.mp4"), gt_video.numpy(), fps=inference_args.save_fps)
-            concat_video = np.concatenate([gt_video.numpy(), chunk_video], axis=2)
-            mediapy.write_video(str(inference_args.save_root / f"{save_name}_merged.mp4"), concat_video, fps=inference_args.save_fps)
-            np.save(str(inference_args.save_root / f"{save_name}_actions.npy"), actions)
-            logger.info(f"Saved video to {chunk_video_name}")
-            x_batch = torch.clamp(torch.from_numpy(chunk_video) / 255.0, 0, 1).permute(0, 3, 1, 2)
-            y_batch = torch.clamp(gt_video / 255.0, 0, 1).permute(0, 3, 1, 2)
-            psnr = piq.psnr(x_batch, y_batch).mean().item()
-            ssim = piq.ssim(x_batch, y_batch).mean().item()
-            lpips = piq.LPIPS()(x_batch, y_batch).mean().item()
-            with open(inference_args.save_root / f"{save_name}_metrics.json", "w") as f:
-                json.dump({"psnr": float(psnr), "ssim": float(ssim), "lpips": float(lpips)}, f)
-            all_psnr.append(psnr)
-            all_ssim.append(ssim)
-            all_lpips.append(lpips)
-
     if rank0:
+        if len(all_psnr) == 0:
+            print("No valid samples were evaluated for this dataset.")
+            print("all_psnr/all_ssim/all_lpips are empty.")
+            return
+
         print(f"PSNR: {sum(all_psnr) / len(all_psnr):.3f}")
         print(f"SSIM: {sum(all_ssim) / len(all_ssim):.3f}")
         print(f"LPIPS: {sum(all_lpips) / len(all_lpips):.3f}")
