@@ -115,6 +115,8 @@ class MANODataset(Dataset):
         self.seek_mode = seek_mode
         self.ffmpeg_threads = ffmpeg_threads
         self.converted_root = converted_root
+        if self.converted_root is not None:
+            self._VIDEO_ROOT = os.path.join(self.converted_root, "videos")
         self.normalize_translation = normalize_translation
         self.time_division_factor = time_division_factor
         self.eval_mode = eval_mode
@@ -166,7 +168,10 @@ class MANODataset(Dataset):
             self.episode_pairs = sorted(pairs)
 
     # (FOR EGODEX) always map converted HDF5 to the corresponding MP4 in the fixed 480p dataset
-    _VIDEO_ROOT = "/mnt/amlfs-03/shared/datasets/egodex_480p"
+    # _VIDEO_ROOT = "/mnt/amlfs-03/shared/datasets/egodex_480p"
+
+    # For EgoDex, videos are expected under <converted_root>/videos
+    _VIDEO_ROOT = None
 
     def _video_path_from_converted(self, converted_path: str) -> Optional[str]:
         # find subpath starting at the first directory named like "part*"
@@ -183,6 +188,11 @@ class MANODataset(Dataset):
         return video_path if os.path.isfile(video_path) else None
 
     def _discover_pairs_from_converted(self, converted_root: str) -> list[tuple[str, str]]:
+        if self._VIDEO_ROOT is None:
+            raise ValueError("self._VIDEO_ROOT is not set")
+        if not os.path.isdir(self._VIDEO_ROOT):
+            raise FileNotFoundError(f"Video root does not exist: {self._VIDEO_ROOT}")
+        
         # pass 1: build a set of video stems under the fixed video root using scandir DFS
         video_stems: set[str] = set()
         vr = os.path.abspath(self._VIDEO_ROOT)
@@ -511,7 +521,8 @@ class MANODataset(Dataset):
             except Exception as e:
                 print("Error loading sample, retrying with a different index...")
                 print(e)
-                idx = randint(0, len(self) - 1)
+                # idx = randint(0, len(self) - 1)
+                raise
 
     def _load_video_slice_torchcodec(self, video_path: str, num_frames: int) -> tuple[list[Image.Image], int]:
         """

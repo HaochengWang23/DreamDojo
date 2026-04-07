@@ -10,9 +10,21 @@ from groot_dreams.data.dataset_mano import MANODataset
 from groot_dreams.data.dataset_video import VideoDataset
 
 
-def is_lerobot_dataset(dataset_path: str) -> bool:
-    return "gr1" in dataset_path.lower() or "g1" in dataset_path.lower() or "yam" in dataset_path.lower() or "agibot" in dataset_path.lower()
+# def is_lerobot_dataset(dataset_path: str) -> bool:
+#     return "gr1" in dataset_path.lower() or "g1" in dataset_path.lower() or "yam" in dataset_path.lower() or "agibot" in dataset_path.lower()
 
+def is_lerobot_dataset(dataset_path: str) -> bool:
+    name = Path(dataset_path).name.lower()
+    return (
+        name.startswith("gr1_")
+        or name.startswith("g1_")
+        or name.startswith("yam_")
+        or name.startswith("agibot_")
+        or name.startswith("gr1.")
+        or name.startswith("g1.")
+        or name.startswith("yam.")
+        or name.startswith("agibot.")
+    )
 
 class VideoActionDataset(torch.utils.data.Dataset):
     def __init__(
@@ -129,31 +141,89 @@ class MultiVideoActionDataset(torch.utils.data.Dataset):
         self.datasets = []
         for path in dataset_paths:
             path = path.strip()
-            if "egodex_21" in path.lower():
-                self.datasets.append(MANODataset(
-                    converted_root=path,
-                    eval_mode=(data_split == "test"),
+            path_name = Path(path).name.lower()
+
+            # # if "egodex_21" in path.lower():
+            # if "egodex" in path_name:
+            #     # self.datasets.append(MANODataset(
+            #     self.datasets.append(VideoActionDataset(
+            #         converted_root=path,
+            #         eval_mode=(data_split == "test"),
+            #         num_frames=num_frames,
+            #         time_division_factor=time_division_factor,
+            #     ))
+            #     print(f"Created MANODataset for {path}")
+            # # elif not is_lerobot_dataset(path.lower()):
+            # elif not is_lerobot_dataset(path):
+            #     self.datasets.append(VideoDataset(
+            #         video_root=path,
+            #         num_frames=num_frames,
+            #     ))
+            #     print(f"Created VideoDataset for {path}")
+            # else:
+            #     # if "gr1" in path.lower():
+            #     if "gr1" in path_name:
+            #         embodiment = "gr1"
+            #     # elif "agibot" in path.lower():
+            #     elif "agibot" in path_name:
+            #         embodiment = "agibot"
+            #     # elif "g1" in path.lower():
+            #     elif "g1" in path_name:
+            #         embodiment = "g1"
+            #     # elif "yam" in path.lower():
+            #     elif "yam" in path_name:
+            #         embodiment = "yam"
+            #     else:
+            #         raise ValueError(f"Cannot infer embodiment from dataset path: {path}")
+            #     self.datasets.append(VideoActionDataset(
+            #         dataset_path=path,
+            #         data_split=data_split,
+            #         num_frames=num_frames,
+            #         time_division_factor=time_division_factor,
+            #         height=height,
+            #         width=width,
+            #         embodiment=embodiment,
+            #         agibot_pad_freq10=False,
+            #         waist_concat=False,
+            #         single_base_index=single_base_index,
+            #     ))
+            #     print(f"Created VideoActionDataset for {path}")
+
+            if "egodex" in path_name or "dreamdojo-hv" in path_name or "dreamdojo_hv" in path_name:
+                embodiment = "gr1"
+                self.datasets.append(VideoActionDataset(
+                    dataset_path=path,
+                    data_split=data_split,
                     num_frames=num_frames,
                     time_division_factor=time_division_factor,
+                    height=height,
+                    width=width,
+                    embodiment=embodiment,
+                    agibot_pad_freq10=False,
+                    waist_concat=False,
+                    single_base_index=single_base_index,
                 ))
-                print(f"Created MANODataset for {path}")
-            elif not is_lerobot_dataset(path.lower()):
+                print(f"Created VideoActionDataset for EgoDex: {path}")
+
+            elif not is_lerobot_dataset(path):
                 self.datasets.append(VideoDataset(
                     video_root=path,
                     num_frames=num_frames,
                 ))
                 print(f"Created VideoDataset for {path}")
+
             else:
-                if "gr1" in path.lower():
+                if "gr1" in path_name:
                     embodiment = "gr1"
-                elif "agibot" in path.lower():
+                elif "agibot" in path_name:
                     embodiment = "agibot"
-                elif "g1" in path.lower():
+                elif "g1" in path_name:
                     embodiment = "g1"
-                elif "yam" in path.lower():
+                elif "yam" in path_name:
                     embodiment = "yam"
                 else:
                     raise ValueError(f"Cannot infer embodiment from dataset path: {path}")
+
                 self.datasets.append(VideoActionDataset(
                     dataset_path=path,
                     data_split=data_split,

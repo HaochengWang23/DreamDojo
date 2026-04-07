@@ -275,7 +275,8 @@ def inference(
         rank0 = distributed.get_rank() == 0
 
     # Ensure save directory exists
-    inference_args.save_root = Path(setup_args.save_dir) / checkpoint_path.parent.name
+    # inference_args.save_root = Path(setup_args.save_dir) / checkpoint_path.parent.name
+    inference_args.save_root = Path(setup_args.output_dir)
     inference_args.save_root.mkdir(parents=True, exist_ok=True)
 
     num_frames = setup_args.num_frames
@@ -289,8 +290,13 @@ def inference(
         deterministic_uniform_sampling=setup_args.deterministic_uniform_sampling,
     )
     # eval_indices = list(range(0, len(dataset), max(len(dataset) // num_samples, 1)))[:num_samples]
-    eval_indices = [idx for idx in range(len(dataset)) if not (inference_args.save_root / f"{idx:04d}_psnr.json").exists()]
+    # eval_indices = [idx for idx in range(len(dataset)) if not (inference_args.save_root / f"{idx:04d}_psnr.json").exists()]
+    eval_indices = [idx for idx in range(len(dataset)) if not (inference_args.save_root / f"{idx:04d}_metrics.json").exists()]
 
+    print(f"[DEBUG] save_root = {inference_args.save_root}")
+    # print(f"[DEBUG] dataset len = {len(dataset)}")
+    # print(f"[DEBUG] eval_indices len = {len(eval_indices)}")
+    # print(f"[DEBUG] first 10 eval_indices = {eval_indices[:10]}")
     all_psnr = []
     all_ssim = []
     all_lpips = []
@@ -298,8 +304,9 @@ def inference(
     # Process each file in the input directory
     for idx in eval_indices:
         try:
-            # print(f"[DEBUG] processing sample idx={idx}")
+            print(f"[DEBUG] processing sample idx={idx}")
             data = dataset[idx]
+            print(f"[DEBUG] idx={idx}, video={data['video'].shape}, action={data['action'].shape}, lam_video={data['lam_video'].shape}")
             gt_video = data["video"].permute(1, 2, 3, 0)
             img_array = data["video"].transpose(0, 1)[:1]
             actions = data["action"][:num_frames - 1].numpy()
@@ -317,10 +324,11 @@ def inference(
             metrics_json = inference_args.save_root / f"{save_name}_metrics.json"
             logger.info(f"Saving video to {video_name}")
 
-            metrics_file = inference_args.save_root / f"{save_name}_metrics.json"
+            # metrics_file = inference_args.save_root / f"{save_name}_metrics.json"
 
 
-            if os.path.exists(chunk_video_name):
+            # if os.path.exists(chunk_video_name):
+            if os.path.exists(metrics_json):
                 # logger.info(f"Video already exists: {chunk_video_name}")
                 logger.info(f"Metrics already exist: {metrics_json}")
                 continue
